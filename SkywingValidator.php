@@ -1,5 +1,5 @@
 <?php
-class SkywingValidator {
+class SW_Validator {
     protected array $data;
     protected array $schema;
     protected array $errors = [];
@@ -11,7 +11,15 @@ class SkywingValidator {
     }
 
     private function validate() {
-        foreach ($this->schema as $field => $rules) {
+        foreach ($this->schema as $field => $config) {
+            $rules = $config;
+            $messages = [];
+
+            if (is_array($config)) {
+                $rules = $config['rules'] ?? '';
+                $messages = $config['messages'] ?? [];
+            }
+
             $value = $this->data[$field] ?? null;
             $rules = explode('|', $rules);
 
@@ -24,10 +32,9 @@ class SkywingValidator {
                     if (preg_match('/^\[(.+)\]$/', $param, $m)) {
                         $target = $m[1];
                         if (isset($this->data[$target])) {
-                            $this->match($field, $value, $target, $this->data[$target]);
-                        } 
-                        else {
-                            $this->errors[$field][] = "$field must match $target";
+                            $this->match($field, $value, $target, $this->data[$target], $messages['match'] ?? null);
+                        } else {
+                            $this->add_error($field, $messages['match'] ?? "$field must match $target");
                         }
                     }
                     continue;
@@ -42,120 +49,115 @@ class SkywingValidator {
                 }
 
                 if (method_exists($this, $method)) {
-                    $this->$method($field, $value, $param);
+                    $this->$method($field, $value, $param, $messages[$method] ?? null);
                 }
             }
         }
     }
 
-    private function required($field, $value) {
+    private function add_error($field, $message) {
+        $this->errors[$field][] = $message;
+    }
+
+    private function required($field, $value, $param = null, $message = null) {
         if (empty($value)) {
-            $this->errors[$field][] = "$field is required";
+            $this->add_error($field, $message ?? "$field is required");
         }
-        return $this;
     }
 
-    private function email($field, $value) {
+    private function email($field, $value, $param = null, $message = null) {
         if (!filter_var($value, FILTER_VALIDATE_EMAIL)) {
-            $this->errors[$field][] = "$field must be a valid email";
+            $this->add_error($field, $message ?? "$field must be a valid email");
         }
-        return $this;
     }
 
-    private function min($field, $value, $min) {
+    private function min($field, $value, $min, $message = null) {
         $length = strlen(trim($value));
         if ($length < $min) {
-            $this->errors[$field][] = "$field must be at least $min characters long";
+            $this->add_error($field, $message ?? "$field must be at least $min characters long");
         }
-        return $this;
     }
 
-    private function max($field, $value, $max) {
+    private function max($field, $value, $max, $message = null) {
         $length = strlen(trim($value));
         if ($length > $max) {
-            $this->errors[$field][] = "$field must be at most $max characters long";
+            $this->add_error($field, $message ?? "$field must be at most $max characters long");
         }
-        return $this;
     }
 
-    private function in($field, $value, array $options) {
+    private function in($field, $value, array $options, $message = null) {
         if (!in_array($value, $options)) {
-            $this->errors[$field][] = "$field must be one of: " . implode(', ', $options);
+            $this->add_error($field, $message ?? "$field must be one of: " . implode(', ', $options));
         }
-        return $this;
     }
 
-    private function between($field, $value, $between) {
+    private function between($field, $value, $between, $message = null) {
         $length = strlen(trim($value));
         $min = $between[0];
         $max = $between[1];
         if ($length < $min || $length > $max) {
-            $this->errors[$field][] = "$field must be between $min and $max characters long";
+            $this->add_error($field, $message ?? "$field must be between $min and $max characters long");
         }
-        return $this;
     }
 
-    private function match($field, $value, $other_field, $other_value) {
+    private function match($field, $value, $other_field, $other_value, $message = null) {
         if ($value !== $other_value) {
-            $this->errors[$field][] = "$field must match $other_field";
+            $this->add_error($field, $message ?? "$field must match $other_field");
         }
-        return $this;
     }
 
-    private function url($field, $value) {
+    private function url($field, $value, $param = null, $message = null) {
         if (!filter_var($value, FILTER_VALIDATE_URL)) {
-            $this->errors[$field][] = "$field must be a valid URL";
+            $this->add_error($field, $message ?? "$field must be a valid URL");
         }
-        return $this;
     }
 
-    private function str($field, $value) {
+    private function str($field, $value, $param = null, $message = null) {
         if (!is_string($value)) {
-            $this->errors[$field][] = "$field must be string";
+            $this->add_error($field, $message ?? "$field must be string");
         }
-        return $this;
     }
 
-    private function arr($field, $value) {
+    private function arr($field, $value, $param = null, $message = null) {
         if (!is_array($value)) {
-            $this->errors[$field][] = "$field must be an array";
+            $this->add_error($field, $message ?? "$field must be an array");
         }
-        return $this;
     }
 
-    private function bool($field, $value) {
+    private function bool($field, $value, $param = null, $message = null) {
         if (!in_array($value, [true, false, 0, 1, '0', '1'], true)) {
-            $this->errors[$field][] = "$field must be a boolean";
+            $this->add_error($field, $message ?? "$field must be a boolean");
         }
-        return $this;
     }
 
-    private function int($field, $value) {
+    private function int($field, $value, $param = null, $message = null) {
         if (!filter_var($value, FILTER_VALIDATE_INT)) {
-            $this->errors[$field][] = "$field must be an integer";
+            $this->add_error($field, $message ?? "$field must be an integer");
         }
-        return $this;
     }
 
-    private function num($field, $value) {
+    private function num($field, $value, $param = null, $message = null) {
         if (!is_numeric($value)) {
-            $this->errors[$field][] = "$field must be a number";
+            $this->add_error($field, $message ?? "$field must be a number");
         }
-        return $this;
     }
 
-    private function alphanum($field, $value) {
+    private function alphanum($field, $value, $param = null, $message = null) {
         if (!ctype_alnum($value)) {
-            $this->errors[$field][] = "$field must be alphanumeric";
+            $this->add_error($field, $message ?? "$field must be alphanumeric");
         }
-        return $this;
+    }
+
+    private function equals($field, $value, $equals, $message = null) {
+        if ($value != $equals) {
+            $this->add_error($field, $message ?? "$field value must equal $equals");
+        }
     }
 
     private function custom($field, $value, callable $callback, $message = '') {
         if (!$callback($value)) {
-            $this->errors[$field][] = $message;
+            $this->add_error($field, $message);
         }
-        return $this;
     }
 
     public function errors(): array {
