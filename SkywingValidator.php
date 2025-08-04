@@ -128,9 +128,8 @@ class SkywingValidator {
     }
 
     private function alphanum($field, $value) {
-        if (!ctype_alnum($value)) {
+        if (!ctype_alnum($value))
             $this->errors[$field] = "$field must be alphanumeric";
-        }
         return $this;
     }
 
