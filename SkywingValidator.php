@@ -1,5 +1,5 @@
 <?php
-class SW_Validator {
+class SkywingValidator {
     protected array $data;
     protected array $schema;
     protected array $errors = [];
