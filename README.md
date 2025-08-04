@@ -40,10 +40,10 @@ $schema = [
 // Instantiate validator with data and schema
 $validator = new SkywingValidator($data, $schema);
 
-if ($validator->pass()) {
+if ($validator->pass())
     echo "Validation passed! You can process the data.";
-} else {
+else 
     print_r($validator->errors());
-}
+
 
 
